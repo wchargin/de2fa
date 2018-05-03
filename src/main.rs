@@ -1,6 +1,5 @@
 extern crate image;
-
-use image::GenericImage;
+extern crate quirc;
 
 fn main() {
     let argv: Vec<_> = std::env::args().collect();
@@ -16,5 +15,22 @@ fn main() {
         }
         Ok(img) => img,
     };
-    println!("Successfully decoded. Dimensions: {:?}", img.dimensions());
+    let img = image::imageops::colorops::grayscale(&img);
+    let (width, height) = img.dimensions();
+    let pixels: Vec<u8> = img.pixels().map(|p| p.data[0]).collect();
+    let mut qr_coder = match quirc::QrCoder::new() {
+        Err(e) => {
+            eprintln!("Failed to create QR code decoder: {:?}", e);
+            std::process::exit(1);
+        }
+        Ok(qr_coder) => qr_coder,
+    };
+    let qr_codes = match qr_coder.codes(&pixels, width, height) {
+        Err(e) => {
+            eprintln!("Failed to decode QR codes: {:?}", e);
+            std::process::exit(1);
+        }
+        Ok(qr_codes) => qr_codes,
+    };
+    println!("QR codes found: {}.", qr_codes.count());
 }
