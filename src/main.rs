@@ -25,12 +25,31 @@ fn main() {
         }
         Ok(qr_coder) => qr_coder,
     };
-    let qr_codes = match qr_coder.codes(&pixels, width, height) {
+    let qr_codes: Vec<_> = match qr_coder.codes(&pixels, width, height) {
         Err(e) => {
             eprintln!("Failed to decode QR codes: {:?}", e);
             std::process::exit(1);
         }
         Ok(qr_codes) => qr_codes,
-    };
-    println!("QR codes found: {}.", qr_codes.count());
+    }.collect();
+    println!("QR codes found: {}.", qr_codes.len());
+    for (i, result) in qr_codes.iter().enumerate() {
+        match result {
+            &Err(ref e) => println!("#{}: failure: {:?}", i, e),
+            &Ok(ref qr_code) => {
+                println!("#{}: success", i);
+                println!("Payload size: {}", qr_code.payload.len());
+                println!("Payload bytes:");
+                for datum in &qr_code.payload {
+                    print!("{:x} ", datum);
+                }
+                println!();
+                println!("As UTF-8:");
+                println!(
+                    "{}",
+                    std::str::from_utf8(&qr_code.payload).unwrap_or("[not valid UTF-8]")
+                );
+            }
+        }
+    }
 }
