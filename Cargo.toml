@@ -1,0 +1,6 @@
+[package]
+name = "de2fa"
+version = "0.1.0"
+authors = ["William Chargin <wchargin@gmail.com>"]
+
+[dependencies]
