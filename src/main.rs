@@ -95,6 +95,11 @@ fn from_payload(payload: &str) -> () {
         }
         Some(secret) => secret,
     };
+    from_secret(secret);
+}
+
+fn from_secret(secret: &str) {
+    println!("Got secret: {}", secret);
     let secret_bytes = match base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret) {
         None => {
             println!("Failed: Secret is not valid base32.");
