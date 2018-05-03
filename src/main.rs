@@ -1,4 +1,6 @@
+extern crate base32;
 extern crate image;
+extern crate oath;
 extern crate quirc;
 extern crate url;
 
@@ -66,10 +68,20 @@ fn process_qr_code(payload_raw: &[u8]) -> Result<String, &'static str> {
     };
     let hash_query: std::collections::HashMap<_, _> =
         parsed_url.query_pairs().into_owned().collect();
-    match hash_query.get("secret") {
+    let secret = match hash_query.get("secret") {
         None => {
             return Err("URL query does not contain \"secret\" key.");
         }
-        Some(secret) => Ok(secret.clone()),
-    }
+        Some(secret) => secret,
+    };
+    let secret_bytes = match base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret) {
+        None => {
+            return Err("Secret is not valid base32.");
+        }
+        Some(secret_bytes) => secret_bytes,
+    };
+    Ok(format!(
+        "{:06}",
+        oath::totp_raw_now(&secret_bytes, 6, 0, 30, &oath::HashType::SHA1)
+    ))
 }
