@@ -74,6 +74,11 @@ fn from_raw_payload(raw_payload: &[u8]) -> () {
         }
         Ok(payload) => payload,
     };
+    from_payload(payload);
+}
+
+fn from_payload(payload: &str) -> () {
+    println!("Got payload: {}", payload);
     let parsed_url = match url::Url::parse(payload) {
         Err(_) => {
             println!("Failed: Not a valid URL.");
