@@ -1,0 +1,3 @@
+Purpose: Given a QR code representing a TOTP auth key:
+ 1. Decode the QR code and print the full contents.
+ 2. Print the TOTP response for the current time.
