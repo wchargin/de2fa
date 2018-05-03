@@ -20,10 +20,7 @@ fn main() {
             println!("QR codes found: {}", raw_payloads.len());
             for (i, raw_payload) in raw_payloads.iter().enumerate() {
                 println!("--- #{}", i);
-                match process_qr_code(&raw_payload) {
-                    Err(message) => println!("Failed: {}", message),
-                    Ok(response) => println!("Response: {}", response),
-                }
+                from_raw_payload(&raw_payload);
             }
         }
     }
@@ -60,16 +57,23 @@ fn image_to_raw_payloads(filename: &str) -> Result<Vec<Vec<u8>>, String> {
         .collect())
 }
 
-fn process_qr_code(payload_raw: &[u8]) -> Result<String, &'static str> {
-    let payload = match std::str::from_utf8(&payload_raw) {
+fn from_raw_payload(raw_payload: &[u8]) -> () {
+    println!("Got raw payload:");
+    for byte in raw_payload {
+        print!("{:x} ", byte);
+    }
+    println!();
+    let payload = match std::str::from_utf8(&raw_payload) {
         Err(_) => {
-            return Err("Not valid UTF-8.");
+            println!("Failed: Not valid UTF-8.");
+            return;
         }
         Ok(payload) => payload,
     };
     let parsed_url = match url::Url::parse(payload) {
         Err(_) => {
-            return Err("Not a valid URL.");
+            println!("Failed: Not a valid URL.");
+            return;
         }
         Ok(parsed_url) => parsed_url,
     };
@@ -77,18 +81,18 @@ fn process_qr_code(payload_raw: &[u8]) -> Result<String, &'static str> {
         parsed_url.query_pairs().into_owned().collect();
     let secret = match hash_query.get("secret") {
         None => {
-            return Err("URL query does not contain \"secret\" key.");
+            println!("Failed: URL query does not contain \"secret\" key.");
+            return;
         }
         Some(secret) => secret,
     };
     let secret_bytes = match base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret) {
         None => {
-            return Err("Secret is not valid base32.");
+            println!("Failed: Secret is not valid base32.");
+            return;
         }
         Some(secret_bytes) => secret_bytes,
     };
-    Ok(format!(
-        "{:06}",
-        oath::totp_raw_now(&secret_bytes, 6, 0, 30, &oath::HashType::SHA1)
-    ))
+    let response = oath::totp_raw_now(&secret_bytes, 6, 0, 30, &oath::HashType::SHA1);
+    println!("Response: {:06}", response);
 }
