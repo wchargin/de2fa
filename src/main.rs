@@ -62,7 +62,7 @@ fn from_raw_payloads(raw_payloads: &Vec<Vec<u8>>) -> () {
 }
 
 fn from_raw_payload(raw_payload: &[u8]) -> () {
-    println!("Got raw payload:");
+    println!("Got raw payload ({} bytes):", raw_payload.len());
     for byte in raw_payload {
         print!("{:x} ", byte);
     }
