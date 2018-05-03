@@ -1,17 +1,34 @@
 extern crate base32;
+extern crate clap;
 extern crate image;
 extern crate oath;
 extern crate quirc;
 extern crate url;
 
 fn main() {
-    let argv: Vec<_> = std::env::args().collect();
-    if argv.len() <= 1 {
-        eprintln!("Usage: {} IMAGE_FILENAME", argv[0]);
-        std::process::exit(1);
-    }
-    let filename = &argv[1];
-    from_image_filename(filename);
+    let matches = clap::App::new("de2fa")
+        .version("0.1.0")
+        .arg(
+            clap::Arg::with_name("from")
+                .long("--from")
+                .possible_values(&["image", "url", "secret"])
+                .default_value("image")
+                .help("Input source type")
+                .takes_value(true),
+        )
+        .arg(
+            clap::Arg::with_name("SOURCE")
+                .required(true)
+                .takes_value(true),
+        )
+        .get_matches();
+    let source = matches.value_of("SOURCE").unwrap();
+    match matches.value_of("from").unwrap() {
+        "image" => from_image_filename(source),
+        "url" => from_payload(source),
+        "secret" => from_secret(source),
+        other => panic!("Unknown source type: {}", other),
+    };
 }
 
 fn from_image_filename(filename: &str) -> () {
