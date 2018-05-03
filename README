@@ -1,3 +1,19 @@
-Purpose: Given a QR code representing a TOTP auth key:
+Purpose
+=======
+
+Given a QR code representing a TOTP auth key:
  1. Decode the QR code and print the full contents.
  2. Print the TOTP response for the current time.
+
+Building
+========
+
+You will need Rust: https://www.rust-lang.org/
+
+For a development build: use `cargo build`; the executable will be
+located at `target/debug/de2fa`.
+
+For a production build, use `cargo build --release`. The executable will
+be located at `target/release/de2fa`.
+
+For usage, invoke the executable with `--help`.
