@@ -11,25 +11,15 @@ fn main() {
         std::process::exit(1);
     }
     let filename = &argv[1];
-    match image_to_raw_payloads(filename) {
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }
-        Ok(raw_payloads) => {
-            println!("QR codes found: {}", raw_payloads.len());
-            for (i, raw_payload) in raw_payloads.iter().enumerate() {
-                println!("--- #{}", i);
-                from_raw_payload(&raw_payload);
-            }
-        }
-    }
+    from_image_filename(filename);
 }
 
-fn image_to_raw_payloads(filename: &str) -> Result<Vec<Vec<u8>>, String> {
+fn from_image_filename(filename: &str) -> () {
+    println!("Got image filename: {}", filename);
     let img = match image::open(filename) {
         Err(e) => {
-            return Err(format!("Failed to decode: {}", e));
+            println!("Failed to decode: {}", e);
+            return;
         }
         Ok(img) => img,
     };
@@ -39,22 +29,36 @@ fn image_to_raw_payloads(filename: &str) -> Result<Vec<Vec<u8>>, String> {
 
     let mut qr_coder = match quirc::QrCoder::new() {
         Err(e) => {
-            return Err(format!("Failed to create QR code decoder: {:?}", e));
+            println!("Failed to create QR code decoder: {:?}", e);
+            return;
         }
         Ok(qr_coder) => qr_coder,
     };
     let qr_codes: Vec<_> = match qr_coder.codes(&pixels, width, height) {
-        Err(e) => return Err(format!("Failed to decode QR codes: {:?}", e)),
+        Err(e) => {
+            println!("Failed to decode QR codes: {:?}", e);
+            return;
+        }
         Ok(qr_codes) => qr_codes,
     }.collect();
 
-    Ok(qr_codes
+    let raw_payloads: Vec<_> = qr_codes
         .into_iter()
         .filter_map(|result| match result {
             Err(_) => None,
             Ok(qr_code) => Some(qr_code.payload),
         })
-        .collect())
+        .collect();
+    from_raw_payloads(&raw_payloads);
+}
+
+fn from_raw_payloads(raw_payloads: &Vec<Vec<u8>>) -> () {
+    println!("QR codes found: {}", raw_payloads.len());
+    for (i, raw_payload) in raw_payloads.iter().enumerate() {
+        println!();
+        println!("--- #{}", i);
+        from_raw_payload(&raw_payload);
+    }
 }
 
 fn from_raw_payload(raw_payload: &[u8]) -> () {
