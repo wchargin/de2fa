@@ -38,18 +38,22 @@ fn main() {
             &Err(ref e) => println!("#{}: failure: {:?}", i, e),
             &Ok(ref qr_code) => {
                 println!("#{}: success", i);
-                println!("Payload size: {}", qr_code.payload.len());
-                println!("Payload bytes:");
-                for datum in &qr_code.payload {
-                    print!("{:x} ", datum);
-                }
-                println!();
-                println!("As UTF-8:");
-                println!(
-                    "{}",
-                    std::str::from_utf8(&qr_code.payload).unwrap_or("[not valid UTF-8]")
-                );
+                process_qr_code(&qr_code.payload);
             }
         }
     }
+}
+
+fn process_qr_code(payload: &[u8]) {
+    println!("Payload size: {}", payload.len());
+    println!("Payload bytes:");
+    for datum in payload {
+        print!("{:x} ", datum);
+    }
+    println!();
+    println!("As UTF-8:");
+    println!(
+        "{}",
+        std::str::from_utf8(&payload).unwrap_or("[not valid UTF-8]")
+    );
 }
