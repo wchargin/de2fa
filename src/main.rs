@@ -11,49 +11,56 @@ fn main() {
         std::process::exit(1);
     }
     let filename = &argv[1];
+    match image_to_raw_payloads(filename) {
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+        Ok(raw_payloads) => {
+            println!("QR codes found: {}", raw_payloads.len());
+            for (i, raw_payload) in raw_payloads.iter().enumerate() {
+                println!("--- #{}", i);
+                match process_qr_code(&raw_payload) {
+                    Err(message) => println!("Failed: {}", message),
+                    Ok(response) => println!("Response: {}", response),
+                }
+            }
+        }
+    }
+}
+
+fn image_to_raw_payloads(filename: &str) -> Result<Vec<Vec<u8>>, String> {
     let img = match image::open(filename) {
         Err(e) => {
-            println!("Failed to decode: {}", e);
-            std::process::exit(1);
+            return Err(format!("Failed to decode: {}", e));
         }
         Ok(img) => img,
     };
     let img = image::imageops::colorops::grayscale(&img);
     let (width, height) = img.dimensions();
     let pixels: Vec<u8> = img.pixels().map(|p| p.data[0]).collect();
+
     let mut qr_coder = match quirc::QrCoder::new() {
         Err(e) => {
-            eprintln!("Failed to create QR code decoder: {:?}", e);
-            std::process::exit(1);
+            return Err(format!("Failed to create QR code decoder: {:?}", e));
         }
         Ok(qr_coder) => qr_coder,
     };
     let qr_codes: Vec<_> = match qr_coder.codes(&pixels, width, height) {
-        Err(e) => {
-            eprintln!("Failed to decode QR codes: {:?}", e);
-            std::process::exit(1);
-        }
+        Err(e) => return Err(format!("Failed to decode QR codes: {:?}", e)),
         Ok(qr_codes) => qr_codes,
     }.collect();
-    println!("QR codes found: {}.", qr_codes.len());
-    for (i, result) in qr_codes.iter().enumerate() {
-        match result {
-            &Err(ref e) => println!("#{}: failure: {:?}", i, e),
-            &Ok(ref qr_code) => {
-                println!("#{}: success", i);
-                println!("{:?}", process_qr_code(&qr_code.payload));
-            }
-        }
-    }
+
+    Ok(qr_codes
+        .into_iter()
+        .filter_map(|result| match result {
+            Err(_) => None,
+            Ok(qr_code) => Some(qr_code.payload),
+        })
+        .collect())
 }
 
 fn process_qr_code(payload_raw: &[u8]) -> Result<String, &'static str> {
-    println!("Payload size: {}", payload_raw.len());
-    println!("Payload bytes:");
-    for datum in payload_raw {
-        print!("{:x} ", datum);
-    }
-    println!();
     let payload = match std::str::from_utf8(&payload_raw) {
         Err(_) => {
             return Err("Not valid UTF-8.");
