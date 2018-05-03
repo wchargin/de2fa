@@ -1,5 +1,6 @@
 extern crate image;
 extern crate quirc;
+extern crate url;
 
 fn main() {
     let argv: Vec<_> = std::env::args().collect();
@@ -38,22 +39,37 @@ fn main() {
             &Err(ref e) => println!("#{}: failure: {:?}", i, e),
             &Ok(ref qr_code) => {
                 println!("#{}: success", i);
-                process_qr_code(&qr_code.payload);
+                println!("{:?}", process_qr_code(&qr_code.payload));
             }
         }
     }
 }
 
-fn process_qr_code(payload: &[u8]) {
-    println!("Payload size: {}", payload.len());
+fn process_qr_code(payload_raw: &[u8]) -> Result<String, &'static str> {
+    println!("Payload size: {}", payload_raw.len());
     println!("Payload bytes:");
-    for datum in payload {
+    for datum in payload_raw {
         print!("{:x} ", datum);
     }
     println!();
-    println!("As UTF-8:");
-    println!(
-        "{}",
-        std::str::from_utf8(&payload).unwrap_or("[not valid UTF-8]")
-    );
+    let payload = match std::str::from_utf8(&payload_raw) {
+        Err(_) => {
+            return Err("Not valid UTF-8.");
+        }
+        Ok(payload) => payload,
+    };
+    let parsed_url = match url::Url::parse(payload) {
+        Err(_) => {
+            return Err("Not a valid URL.");
+        }
+        Ok(parsed_url) => parsed_url,
+    };
+    let hash_query: std::collections::HashMap<_, _> =
+        parsed_url.query_pairs().into_owned().collect();
+    match hash_query.get("secret") {
+        None => {
+            return Err("URL query does not contain \"secret\" key.");
+        }
+        Some(secret) => Ok(secret.clone()),
+    }
 }
