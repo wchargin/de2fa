@@ -17,22 +17,31 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            clap::Arg::with_name("verbose")
+                .long("--verbose")
+                .short("-v")
+                .help("Display raw data and TOTP secret, not just response"),
+        )
+        .arg(
             clap::Arg::with_name("SOURCE")
                 .required(true)
                 .takes_value(true),
         )
         .get_matches();
     let source = matches.value_of("SOURCE").unwrap();
+    let verbose = matches.occurrences_of("verbose") > 0;
     match matches.value_of("from").unwrap() {
-        "image" => from_image_filename(source),
-        "url" => from_payload(source),
-        "secret" => from_secret(source),
+        "image" => from_image_filename(source, verbose),
+        "url" => from_payload(source, verbose),
+        "secret" => from_secret(source, verbose),
         other => panic!("Unknown source type: {}", other),
     };
 }
 
-fn from_image_filename(filename: &str) -> () {
-    println!("Got image filename: {}", filename);
+fn from_image_filename(filename: &str, verbose: bool) -> () {
+    if verbose {
+        println!("Got image filename: {}", filename);
+    }
     let img = match image::open(filename) {
         Err(e) => {
             println!("Failed to decode: {}", e);
@@ -66,24 +75,30 @@ fn from_image_filename(filename: &str) -> () {
             Ok(qr_code) => Some(qr_code.payload),
         })
         .collect();
-    from_raw_payloads(&raw_payloads);
+    from_raw_payloads(&raw_payloads, verbose);
 }
 
-fn from_raw_payloads(raw_payloads: &Vec<Vec<u8>>) -> () {
-    println!("QR codes found: {}", raw_payloads.len());
+fn from_raw_payloads(raw_payloads: &Vec<Vec<u8>>, verbose: bool) -> () {
+    if verbose {
+        println!("QR codes found: {}", raw_payloads.len());
+    }
     for (i, raw_payload) in raw_payloads.iter().enumerate() {
-        println!();
-        println!("--- #{}", i);
-        from_raw_payload(&raw_payload);
+        if verbose {
+            println!();
+            println!("--- #{}", i);
+        }
+        from_raw_payload(&raw_payload, verbose);
     }
 }
 
-fn from_raw_payload(raw_payload: &[u8]) -> () {
-    println!("Got raw payload ({} bytes):", raw_payload.len());
-    for byte in raw_payload {
-        print!("{:x} ", byte);
+fn from_raw_payload(raw_payload: &[u8], verbose: bool) -> () {
+    if verbose {
+        println!("Got raw payload ({} bytes):", raw_payload.len());
+        for byte in raw_payload {
+            print!("{:x} ", byte);
+        }
+        println!();
     }
-    println!();
     let payload = match std::str::from_utf8(&raw_payload) {
         Err(_) => {
             println!("Failed: Not valid UTF-8.");
@@ -91,11 +106,13 @@ fn from_raw_payload(raw_payload: &[u8]) -> () {
         }
         Ok(payload) => payload,
     };
-    from_payload(payload);
+    from_payload(payload, verbose);
 }
 
-fn from_payload(payload: &str) -> () {
-    println!("Got payload: {}", payload);
+fn from_payload(payload: &str, verbose: bool) -> () {
+    if verbose {
+        println!("Got payload: {}", payload);
+    }
     let parsed_url = match url::Url::parse(payload) {
         Err(_) => {
             println!("Failed: Not a valid URL.");
@@ -112,11 +129,13 @@ fn from_payload(payload: &str) -> () {
         }
         Some(secret) => secret,
     };
-    from_secret(secret);
+    from_secret(secret, verbose);
 }
 
-fn from_secret(secret: &str) {
-    println!("Got secret: {}", secret);
+fn from_secret(secret: &str, verbose: bool) {
+    if verbose {
+        println!("Got secret: {}", secret);
+    }
     let secret_bytes = match base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret) {
         None => {
             println!("Failed: Secret is not valid base32.");
@@ -125,5 +144,9 @@ fn from_secret(secret: &str) {
         Some(secret_bytes) => secret_bytes,
     };
     let response = oath::totp_raw_now(&secret_bytes, 6, 0, 30, &oath::HashType::SHA1);
-    println!("Response: {:06}", response);
+    if verbose {
+        println!("Response: {:06}", response);
+    } else {
+        println!("{:06}", response);
+    }
 }
