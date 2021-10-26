@@ -141,13 +141,17 @@ impl FromImageIterator {
                 result: std::result::Result::Err(msg),
             }))
         };
-        let img = match image::open(filename) {
-            Err(e) => return fail(format!("Failed to decode: {}", e)),
+        let img = match std::fs::read(filename) {
+            Err(e) => return fail(format!("Failed to read: {}", e)),
+            Ok(img) => img,
+        };
+        let img = match image::load_from_memory(&img) {
+            Err(e) => return fail(format!("Failed to load: {}", e)),
             Ok(img) => img,
         };
         let img = image::imageops::colorops::grayscale(&img);
         let (width, height) = img.dimensions();
-        let pixels: Vec<u8> = img.pixels().map(|p| p.data[0]).collect();
+        let pixels: Vec<u8> = img.pixels().map(|p| p.0[0]).collect();
 
         let mut qr_coder = match quirc::QrCoder::new() {
             Err(e) => return fail(format!("Failed to create QR code decoder: {:?}", e)),
